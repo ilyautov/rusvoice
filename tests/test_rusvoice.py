@@ -211,9 +211,14 @@ def test_worst_is_the_worst():
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
-def _cli(*args):
+def _cli(*args, env=None):
+    """⚠️ `encoding="utf-8"` обязателен: CLI печатает UTF-8 при любой консоли, а
+    `text=True` в одиночку декодирует по кодировке системы — на англоязычной Windows это
+    cp1252, и вывод приходит НЕ мусором, а `None`. Ошибка потом выглядит как «CLI ничего
+    не напечатал», хотя напечатал он всё."""
     return subprocess.run([sys.executable, "-m", "rusvoice", *args],
-                          capture_output=True, text=True, cwd=ROOT, timeout=120)
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", cwd=ROOT, timeout=120, env=env)
 
 
 def test_cli_explain_json_shape():
@@ -257,13 +262,11 @@ def test_cli_survives_a_console_that_is_not_utf8():
     поэтому проверка здесь, а не в надежде на матрицу.
     """
     env = {**os.environ, "PYTHONIOENCODING": "cp1251"}
-    r = subprocess.run([sys.executable, "-m", "rusvoice", "explain", "ТЗ на MVP"],
-                       capture_output=True, text=True, cwd=ROOT, timeout=120, env=env)
+    r = _cli("explain", "ТЗ на MVP", env=env)
     assert r.returncode in (0, 1), r.stderr[-400:]
     assert "тэ-зэ" in r.stdout, r.stdout[-300:]
 
-    r = subprocess.run([sys.executable, "-m", "rusvoice", "--help"],
-                       capture_output=True, text=True, cwd=ROOT, timeout=120, env=env)
+    r = _cli("--help", env=env)
     assert r.returncode == 0, r.stderr[-400:]
 
 
