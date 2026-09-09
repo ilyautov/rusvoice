@@ -48,6 +48,19 @@ jobs:
         shell: bash
         run: python -m pytest tests/ -q
 
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      # Набор правил задан в pyproject: без него ruff берёт конфиг машины и у разных
+      # людей проверяет разное.
+      - run: pip install ruff
+      - run: ruff check rusvoice tests scripts
+
   bare:
     # Ядро обязано жить в чужом окружении без единой опциональной зависимости —
     # на этом стоит весь смысл пакета. Здесь же ловится обратное: тест, который
