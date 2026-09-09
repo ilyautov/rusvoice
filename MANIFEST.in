@@ -1,0 +1,10 @@
+# Что должно доехать в sdist сверх пакета. Колесо собирается по package-data,
+# а тарболл — по этому файлу; разъехавшись, они дают «на wheel работает, из
+# исходников нет», и ловится это только чужой установкой.
+include README.md
+include README.en.md
+include CHANGELOG.md
+include LICENSE
+recursive-include rusvoice *.json
+recursive-include rusvoice *.html
+recursive-include tests *.py

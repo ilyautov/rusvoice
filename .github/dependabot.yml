@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+  # Экшены запинены по SHA — значит сами они не обновятся никогда. Обновляет их
+  # только это; без строчки пины тихо стареют вместе с уязвимостями.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

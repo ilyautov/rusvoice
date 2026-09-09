@@ -1,0 +1,30 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: секреты и личные данные
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # gitleaks смотрит историю, а не только рабочее дерево
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      # Секрет-сканеры ищут ключи. Здесь опаснее другое: личный путь, имя файла
+      # с чужим голосом, ссылка в приватный репозиторий. Их ищет своя проверка.
+      - name: Личного и служебного в репозитории нет
+        run: python scripts/prepublish_check.py

@@ -1,13 +1,105 @@
 name: check
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: tests · ${{ matrix.os }} · py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          # По одной ноге на macOS и Windows: пакет обязан ставиться на железо
+          # человека, а не только на линуксовый раннер. Матрицу это не раздувает.
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      # ⚠️ ffmpeg нужен не для видео: пакет им меряет громкость, правит края эталона
+      # и генерирует детерминированный тон для тестов.
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - name: Install package with extras
+        shell: bash
+        run: pip install -e ".[accent,numbers,ui,ref,dev]"
+      - name: Run tests
+        shell: bash
+        run: python -m pytest tests/ -q
+
+  bare:
+    # Ядро обязано жить в чужом окружении без единой опциональной зависимости —
+    # на этом стоит весь смысл пакета. Здесь же ловится обратное: тест, который
+    # без экстры не скипается, а падает, и человек читает это как «репо сломано».
+    name: bare core (без единой зависимости)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      # ⚠️ ffmpeg нужен не для видео: пакет им меряет громкость и правит края.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install -e ".[accent,numbers,ui,ref]" pytest
+      - run: pip install -e . pytest
       - run: python -m pytest tests/ -q
+      - name: explain работает и честно предупреждает про отсутствие RUAccent
+        run: |
+          # ⚠️ `|| true` не для красоты: в неполном окружении explain возвращает 1
+          # НАМЕРЕННО (годен как проверка в скрипте), и под `set -e` шаг бы упал.
+          OUT=$(rusvoice explain "Компания Knight Capital потеряла 440 миллионов — ТЗ было на MVP." || true)
+          echo "$OUT"
+          echo "$OUT" | grep -q "Найт Кэпитал"
+          echo "$OUT" | grep -q "эм-ви-пи"
+          echo "$OUT" | grep -q "RUAccent"
+
+  dist:
+    # Пруф первого пользователя, но в автоматике: собрать, проверить метаданные и
+    # поставить КОЛЕСО в пустое окружение. Юнит-тесты этого не покрывают — они
+    # гоняются по исходникам, где отсутствие словаря в package-data незаметно.
+    name: dist (сборка · метаданные · установка колеса)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+      - name: Metadata
+        run: python -m twine check dist/*
+      - name: Install the wheel into a clean venv and run the CLI
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+          /tmp/clean/bin/rusvoice --help
+          # Словари — package-data: забыть их в pyproject легко, и тогда пакет
+          # ставится, а транслит молча не работает.
+          /tmp/clean/bin/rusvoice explain "ТЗ на MVP" | grep -q "тэ-зэ"  # rc=1 съедает pipe
+      - name: Tests from the sdist tarball
+        # Из тарболла собирают дистрибуторы; если MANIFEST.in разъехался с
+        # package-data, это видно только здесь.
+        run: |
+          mkdir -p /tmp/sd && tar xzf dist/*.tar.gz -C /tmp/sd
+          cd /tmp/sd/rusvoice-* && pip install . pytest && python -m pytest tests/ -q

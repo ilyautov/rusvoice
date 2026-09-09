@@ -9,6 +9,7 @@
 Главный замок — `matches_engine`: объяснение обязано быть про тот же текст, который уйдёт
 в синтез. Разъехавшееся объяснение хуже отсутствующего.
 """
+import importlib.util
 import json
 import os
 import subprocess
@@ -24,6 +25,14 @@ from rusvoice import doctor as D  # noqa: E402
 from rusvoice import layers as L  # noqa: E402
 
 SAMPLE = "Claude Code на подписке MAX: лендинг за 5x дешевле."
+
+# Отбор эталона мерит тишину между словами через numpy (экстра `ref`). В окружении без
+# него проверять нечего — но молчать об этом нельзя: сырое `ModuleNotFoundError` читается
+# как «репозиторий сломан», хотя сломана только установка.
+needs_numpy = pytest.mark.skipif(
+    importlib.util.find_spec("numpy") is None,
+    reason="нужен экстра `ref` (numpy): pip install \".[ref]\"",
+)
 
 
 def test_trace_matches_the_engine_path():
@@ -787,6 +796,7 @@ def _tail_seconds(path: str) -> float:
     return (len(a) - loud[-1]) / sr if len(loud) else 0.0
 
 
+@needs_numpy
 def test_say_puts_air_after_the_last_word(tmp_path, fake_synth):
     """⭐ Вердикт Ильи 07.09.2026: «хвост нужен именно на конце всего текста, а не между
     предложениями». 0.18с в `clone_synth` — паддинг КЛИПА, рассчитанный на стык со
@@ -985,6 +995,7 @@ def test_extract_audio_takes_the_track_out_of_a_video(tmp_path):
     assert p["channels"] == 1 and p["sample_rate"] == 24000
 
 
+@needs_numpy
 def test_measure_window_reads_the_floor_between_words_not_the_speech(tmp_path):
     """⭐ Фон меряется в ПРОМЕЖУТКАХ: усреднив по всему окну, речь перевесит шум, и грязная
     запись получила бы хорошую оценку. Клон наследует шум эталона вместе с голосом."""
@@ -1011,6 +1022,7 @@ def test_window_score_punishes_a_noisy_floor_and_clipping():
     assert clipped.score(10) > clean.score(10)
 
 
+@needs_numpy
 def test_candidates_are_measured_and_ranked(tmp_path):
     sig_path = _speech(tmp_path / "s.wav")
     got = R.candidates(sig_path, _grid_words(), target=8.0)
@@ -1020,6 +1032,7 @@ def test_candidates_are_measured_and_ranked(tmp_path):
     assert got[0].text.startswith("с")
 
 
+@needs_numpy
 def test_grab_produces_a_reference_with_its_transcript(tmp_path, monkeypatch):
     """Одна команда от видео до годного эталона: дорожка → тайминги → измерение окон →
     рез по границам слов. Транскрипт складывается из тех же слов — дословность по
@@ -1035,6 +1048,7 @@ def test_grab_produces_a_reference_with_its_transcript(tmp_path, monkeypatch):
     assert r["source_words"] == 14
 
 
+@needs_numpy
 def test_grab_result_passes_its_own_check(tmp_path, monkeypatch):
     """Выход `grab` обязан быть годным эталоном по мерке самого пакета — иначе команда
     делает вид, что работа сделана."""
@@ -1063,6 +1077,7 @@ def test_grab_reports_a_source_it_cannot_read(tmp_path):
     assert not r["ok"] and "дорожку" in r["detail"]
 
 
+@needs_numpy
 def test_grab_says_no_when_every_window_is_gappy(tmp_path, monkeypatch):
     """Молча выданный эталон с восьмисекундной дырой хуже отказа: проверить его можно
     только ушами, а выглядит он как сделанная работа."""
