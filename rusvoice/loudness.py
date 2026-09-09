@@ -60,7 +60,10 @@ def measure(path: str) -> Loudness:
     from rusvoice import engine as E
     ffmpeg, _ = E.ffmpeg_bins()
     if not ffmpeg:
-        return Loudness(None, None, None)      # нечем мерить — не выдаём тишину за замер
+        # ⚠️ path первым: ветка «нечем мерить» существовала с самого начала и всё это
+        # время падала TypeError — её просто никогда не выполняли, потому что у автора
+        # ffmpeg есть всегда. Нашлась при установке в пустое окружение.
+        return Loudness(str(path), None, None, None)  # не выдаём тишину за замер
     r = subprocess.run([ffmpeg, "-nostdin", "-hide_banner", "-i", str(path),
                         "-af", "ebur128=framelog=quiet:peak=true", "-f", "null", "-"],
                        capture_output=True, text=True)
@@ -75,6 +78,19 @@ def measure(path: str) -> Loudness:
     return Loudness(str(path), pick("I"), pick("Peak"), pick("LRA"))
 
 
+def no_measure_reason() -> str | None:
+    """Почему замера нет: инструмента нет — или он был и не справился.
+
+    ⚠️ Разница не косметическая. «ebur128 не отработал» при отсутствующем ffmpeg
+    отправляет искать проблему в фильтре и в файле, тогда как ставить надо ffmpeg.
+    """
+    from rusvoice import engine as E
+    ffmpeg, _ = E.ffmpeg_bins()
+    if not ffmpeg:
+        return "нечем мерить — ffmpeg не найден: ни FFMPEG_BIN, ни PATH"
+    return None
+
+
 def why_short(before: Loudness, after: Loudness) -> str:
     """Объяснить недобор — не «не получилось», а СКОЛЬКО и ПОЧЕМУ.
 
@@ -82,7 +98,7 @@ def why_short(before: Loudness, after: Loudness) -> str:
     вот куда делась громкость. Без этой арифметики недобор выглядит как случайность и
     лечится подкручиванием наугад."""
     if after.integrated is None:
-        return "выход не измерился — ebur128 не отработал"
+        return no_measure_reason() or "выход не измерился — ebur128 не отработал"
     need = TARGET - (before.integrated if before.integrated is not None else TARGET)
     got = after.integrated - (before.integrated if before.integrated is not None else 0.0)
     tail = ""

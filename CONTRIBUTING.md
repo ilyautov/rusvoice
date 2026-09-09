@@ -29,9 +29,14 @@ python3 -m rusvoice dict bump                     # поднять версию 
 
 ## Код
 
+Нужен **ffmpeg**: треть тестов меряет настоящий звук — генерирует тон, считает громкость,
+режет края. Без него тесты не запустятся и скажут об этом одной строкой, а не сорока
+восемью трейсбеками.
+
 ```bash
+brew install ffmpeg                 # или apt-get / choco
 pip install -e ".[accent,numbers,ui,ref,dev]"
-python -m pytest tests/ -q          # 145 тестов, ~40 секунд
+python -m pytest tests/ -q          # 148 тестов, ~40 секунд
 python scripts/prepublish_check.py  # личного и служебного в репозитории нет
 ruff check rusvoice tests
 ```

@@ -237,7 +237,10 @@ def cmd_loud(args) -> int:
                               "LRA": m.lra, "ok": m.ok}, ensure_ascii=False, indent=1))
             return 0 if m.ok else 1
         if m.integrated is None:
-            print("✗ не измерилось — ebur128 не отработал")
+            why = LD.no_measure_reason()
+            print("✗ " + (why or "не измерилось — ebur128 не отработал"))
+            if why:
+                print("    → поставить ffmpeg или указать FFMPEG_BIN; `rusvoice doctor` покажет")
             return 1
         print(f"{'✓' if m.ok else '!'} {m.integrated:.1f} LUFS · истинный пик "
               f"{m.true_peak:.1f} dBFS · LRA {m.lra}")
@@ -552,7 +555,26 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _utf8_output() -> None:
+    """Заставить вывод быть UTF-8 независимо от кодировки консоли.
+
+    ⚠️ Иначе на Windows пакет не работает вообще: консоль там по умолчанию не UTF-8, а
+    весь вывод здесь русский — `rusvoice --help` падает с `UnicodeEncodeError` на первом
+    же «↔» или «✓». Кириллицу cp1251 ещё вытянет, стрелки и галочки — нет, и поэтому
+    ошибка выглядит случайной: одна команда работает, соседняя падает.
+
+    `errors="replace"` вторым рубежом: сломанный символ должен портить один знак, а не
+    ронять команду целиком.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass  # перенаправленный или подменённый поток — не наше дело
+
+
 def main(argv=None) -> int:
+    _utf8_output()
     args = build_parser().parse_args(argv)
     return args.fn(args)
 

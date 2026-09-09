@@ -96,6 +96,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      # Тесты из sdist меряют настоящий звук — ffmpeg нужен и здесь.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Build
         run: |
           python -m pip install --upgrade build twine

@@ -248,6 +248,25 @@ def test_cli_help_runs():
     assert r.returncode == 0 and "explain" in r.stdout and "doctor" in r.stdout
 
 
+def test_cli_survives_a_console_that_is_not_utf8():
+    """Консоль не в UTF-8 — вывод обязан дойти, а не уронить команду.
+
+    ⚠️ Так пакет НЕ работал на Windows вообще: тамошняя консоль по умолчанию не UTF-8,
+    весь вывод здесь русский, и `--help` падал с `UnicodeEncodeError` на «↔». Ловилось
+    только на windows-ноге CI; `PYTHONIOENCODING=cp1251` воспроизводит это где угодно —
+    поэтому проверка здесь, а не в надежде на матрицу.
+    """
+    env = {**os.environ, "PYTHONIOENCODING": "cp1251"}
+    r = subprocess.run([sys.executable, "-m", "rusvoice", "explain", "ТЗ на MVP"],
+                       capture_output=True, text=True, cwd=ROOT, timeout=120, env=env)
+    assert r.returncode in (0, 1), r.stderr[-400:]
+    assert "тэ-зэ" in r.stdout, r.stdout[-300:]
+
+    r = subprocess.run([sys.executable, "-m", "rusvoice", "--help"],
+                       capture_output=True, text=True, cwd=ROOT, timeout=120, env=env)
+    assert r.returncode == 0, r.stderr[-400:]
+
+
 # ── словари ──────────────────────────────────────────────────────────────────
 
 from rusvoice import dicts as DI  # noqa: E402
@@ -620,6 +639,33 @@ def _tone_at(path, db, seconds=1.5):
                     "-af", f"volume={db}dB", "-ac", "1", "-ar", "48000", str(path)],
                    capture_output=True, timeout=120)
     return str(path)
+
+
+def test_measure_without_ffmpeg_returns_an_empty_measurement(monkeypatch, tmp_path):
+    """Нечем мерить — вернуть пустой замер, а не выдать тишину за −70 LUFS.
+
+    ⚠️ Ветка была написана с самого начала и всё это время падала `TypeError`: в ней
+    забыт `path`. Выполнялась она только там, где ffmpeg нет, — то есть никогда у
+    автора и сразу же у первого человека с чистой машиной.
+    """
+    from rusvoice import engine as E
+    monkeypatch.setattr(E, "ffmpeg_bins", lambda: (None, None))
+    m = LD.measure(str(tmp_path / "нет.wav"))
+    assert m.integrated is None and m.true_peak is None and m.lra is None
+    assert m.path.endswith("нет.wav")
+
+
+def test_no_measure_reason_names_the_missing_tool_not_the_filter(monkeypatch):
+    """Без ffmpeg диагноз обязан называть ffmpeg.
+
+    «ebur128 не отработал» отправляет искать проблему в фильтре и в файле — а ставить
+    надо ffmpeg. Неверный диагноз дороже отсутствующего: по нему ищут не там.
+    """
+    from rusvoice import engine as E
+    monkeypatch.setattr(E, "ffmpeg_bins", lambda: (None, None))
+    assert "ffmpeg" in (LD.no_measure_reason() or "")
+    monkeypatch.setattr(E, "ffmpeg_bins", lambda: ("/есть/ffmpeg", None))
+    assert LD.no_measure_reason() is None
 
 
 def test_measure_returns_numbers(tmp_path):
