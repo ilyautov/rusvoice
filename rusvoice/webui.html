@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rusvoice — русская озвучка</title>
+<style>
+  :root{
+    --bg:#0b0a09; --bg2:#141210; --bg3:#1b1815; --ink:#f2efe9; --muted:#9a938a;
+    --accent:#d2a15e; --accent2:#e8c48b; --line:#282320; --line2:#37302a;
+    --ok:#7fc98a; --warn:#e0b44f; --err:#e07a6a;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark}
+  body{background:var(--bg);color:var(--ink);min-height:100dvh;
+       font:16px/1.55 Inter,-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body::before{content:"";position:fixed;inset:0 0 auto;height:1px;pointer-events:none;z-index:0;
+    background:linear-gradient(90deg,transparent,rgba(210,161,94,.45),transparent)}
+  .page{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:40px 24px 72px}
+
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  h1 b{color:var(--accent);font-weight:700}
+  .sub{color:var(--muted);font-size:14px}
+  .envline{color:var(--muted);font-size:12.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+           margin-bottom:26px;word-break:break-all}
+
+  nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:26px}
+  nav button{background:none;border:0;color:var(--muted);font:inherit;font-size:15px;
+    padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  nav button:hover{color:var(--ink)}
+  nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+  nav .badge{display:inline-block;min-width:18px;margin-left:7px;padding:0 5px;border-radius:9px;
+    font-size:11.5px;line-height:18px;text-align:center;background:var(--line2);color:var(--muted)}
+  nav .badge.bad{background:rgba(224,122,106,.18);color:var(--err)}
+  nav .badge.warn{background:rgba(224,180,79,.16);color:var(--warn)}
+
+  section{display:none} section.on{display:block}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+  @media (max-width:860px){.cols{grid-template-columns:1fr}}
+
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px}
+  textarea,input[type=text],input[type=number],select{width:100%;background:var(--bg2);
+    color:var(--ink);border:1px solid var(--line2);border-radius:10px;padding:12px 13px;
+    font:inherit;outline:none}
+  textarea{min-height:150px;resize:vertical;line-height:1.6}
+  textarea:focus,input:focus,select:focus{border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(210,161,94,.14)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .chk{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13.5px;cursor:pointer}
+  .chk input{accent-color:var(--accent)}
+
+  button.act{background:var(--accent);color:#231a10;border:0;border-radius:9px;
+    padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+  button.act:hover{background:var(--accent2)}
+  button.act[disabled]{opacity:.45;cursor:not-allowed}
+  button.ghost{background:none;color:var(--muted);border:1px solid var(--line2);
+    border-radius:9px;padding:9px 14px;font:inherit;cursor:pointer}
+  button.ghost:hover{color:var(--ink);border-color:var(--accent)}
+
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .card + .card{margin-top:16px}
+  .card h2{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;
+    text-transform:uppercase;margin-bottom:12px}
+
+  .out{font-size:18px;line-height:1.65;word-wrap:break-word}
+  .out .mark{color:var(--accent);font-weight:700}
+  .out.empty{color:var(--muted);font-size:15px}
+
+  .layer{margin-top:14px}
+  .layer:first-child{margin-top:0}
+  .layer h3{font-size:12.5px;color:var(--accent);font-weight:600;margin-bottom:5px}
+  .chg{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+    color:var(--muted);padding:1px 0}
+  .chg b{color:var(--ink);font-weight:500}
+
+  ul.notes{list-style:none;font-size:13.5px}
+  ul.notes li{padding:4px 0 4px 20px;position:relative;color:var(--muted)}
+  ul.notes li::before{content:"·";position:absolute;left:6px;color:var(--line2)}
+  ul.notes li.warn{color:var(--warn)} ul.notes li.warn::before{content:"!";color:var(--warn)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:0 10px 8px 0;
+     text-transform:uppercase;letter-spacing:.04em}
+  td{padding:7px 10px 7px 0;border-top:1px solid var(--line);vertical-align:top}
+  td.k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .src{color:var(--muted);font-size:12px}
+  .dead{color:var(--err)}
+  .scroll{max-height:460px;overflow:auto}
+
+  .check{display:grid;grid-template-columns:20px 1fr;gap:10px;padding:9px 0;
+    border-top:1px solid var(--line);font-size:14px}
+  .check:first-child{border-top:0}
+  .check .m{font-weight:700}
+  .check .m.ok{color:var(--ok)} .check .m.warn{color:var(--warn)} .check .m.fail{color:var(--err)}
+  .check .n{color:var(--muted);font-size:12.5px}
+  .check .fix{color:var(--accent);font-size:12.5px;margin-top:3px}
+
+  .hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .flash{margin-top:12px;padding:10px 13px;border-radius:9px;font-size:13.5px;
+    border:1px solid var(--line2);background:var(--bg3)}
+  .flash.ok{border-color:rgba(127,201,138,.4)} .flash.bad{border-color:rgba(224,122,106,.45)}
+  audio{width:100%;margin-top:14px}
+  .spin{color:var(--muted);font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1><b>rusvoice</b> — русская озвучка</h1>
+    <span class="sub">что тракт сделает с текстом и можно ли ему верить</span>
+  </header>
+  <div class="envline" id="envline">…</div>
+
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="text">Текст</button>
+    <button role="tab" aria-selected="false" data-tab="dict">Словари</button>
+    <button role="tab" aria-selected="false" data-tab="env">Окружение<span class="badge" id="envbadge">…</span></button>
+  </nav>
+
+  <!-- ── текст ─────────────────────────────────────────────────────────── -->
+  <section id="tab-text" class="on">
+    <div class="cols">
+      <div>
+        <label for="src">Реплика</label>
+        <textarea id="src" placeholder="Claude Code на подписке MAX: лендинг за 5x дешевле."></textarea>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="accent" checked> ударения (клон)</label>
+          <span class="hint" style="margin:0">edge «+» не уважает — для него снять</span>
+        </div>
+        <div class="row" id="sayrow">
+          <button class="act" id="saybtn">Озвучить</button>
+          <label class="chk"><input type="checkbox" id="loud" checked> довести до −14 LUFS</label>
+        </div>
+        <div id="sayout"></div>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Уйдёт в синтез</h2>
+          <div class="out empty" id="out">введи реплику слева</div>
+        </div>
+        <div class="card" id="layers-card" hidden>
+          <h2>Что сделал каждый слой</h2>
+          <div id="layers"></div>
+        </div>
+        <div class="card" id="notes-card" hidden>
+          <h2>Замечания</h2>
+          <ul class="notes" id="notes"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── словари ───────────────────────────────────────────────────────── -->
+  <section id="tab-dict">
+    <div class="row" style="margin:0 0 18px">
+      <select id="kind" style="width:auto">
+        <option value="brands">бренды</option>
+        <option value="hard-e">твёрдая э</option>
+        <option value="stress">ударения-переписью</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="livecheck" checked> проверять, что запись работает</label>
+      <span class="hint" style="margin:0" id="dictcount"></span>
+    </div>
+    <div class="cols">
+      <div class="card">
+        <h2>Дописать</h2>
+        <label for="dkey">Ключ</label>
+        <input type="text" id="dkey">
+        <div class="hint" id="keyhint"></div>
+        <label for="dval" style="margin-top:14px">Как читать</label>
+        <input type="text" id="dval">
+        <label for="dnote" style="margin-top:14px">Чем проверено (уйдёт в _verified)</label>
+        <input type="text" id="dnote" placeholder="edge-синтез 6/6, mid-sentence">
+        <div class="row">
+          <button class="act" id="addbtn">Добавить</button>
+          <label class="chk"><input type="checkbox" id="force"> вопреки отказу</label>
+          <label class="chk"><input type="checkbox" id="bump"> поднять версию правил</label>
+        </div>
+        <div id="addout"></div>
+        <div class="hint" id="verline"></div>
+      </div>
+      <div class="card">
+        <h2>Записи</h2>
+        <div class="scroll"><table id="dicttable"><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── окружение ─────────────────────────────────────────────────────── -->
+  <section id="tab-env">
+    <div class="cols">
+      <div class="card">
+        <h2>Доктор</h2>
+        <div id="doctor"></div>
+        <div class="row"><button class="ghost" id="recheck">Проверить снова</button></div>
+      </div>
+      <div class="card">
+        <h2>Эталон голоса</h2>
+        <label for="refpath">Путь (пусто — канонический)</label>
+        <input type="text" id="refpath" placeholder="assets/voice/pravki_ref_raw.wav">
+        <div class="row"><button class="ghost" id="refbtn">Сверить</button></div>
+        <div id="refout" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (url, body) => {
+  const r = await fetch(url, body === undefined ? {} : {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.status);
+  return r.json();
+};
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+// Метка ударения — главное, что глаз ищет в результате: подсвечиваем её и следующую букву.
+const marks = s => esc(s).replace(/\+(.)/g, '<span class="mark">+$1</span>');
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'dict') loadDict();
+});
+
+// ── текст ───────────────────────────────────────────────────────────────
+let timer = null, lastSent = null;
+async function explain() {
+  const text = $('#src').value;
+  if (!text.trim()) {
+    $('#out').className = 'out empty'; $('#out').textContent = 'введи реплику слева';
+    $('#layers-card').hidden = $('#notes-card').hidden = true; return;
+  }
+  const key = text + '|' + $('#accent').checked;
+  if (key === lastSent) return;
+  lastSent = key;
+  const d = await api('/api/explain', {text, accent: $('#accent').checked});
+  $('#out').className = 'out'; $('#out').innerHTML = marks(d.text);
+
+  const by = {};
+  d.changes.forEach(c => (by[c.layer] = by[c.layer] || []).push(c));
+  const layers = Object.entries(by).map(([name, cs]) =>
+    `<div class="layer"><h3>${esc(name)}</h3>` +
+    cs.map(c => `<div class="chg"><b>${esc(c.before)}</b> → <b>${marks(c.after)}</b></div>`).join('') +
+    `</div>`).join('');
+  $('#layers').innerHTML = layers;
+  $('#layers-card').hidden = !layers;
+
+  const notes = d.warnings.map(w => `<li class="warn">${esc(w)}</li>`)
+    .concat(d.skipped.map(s => `<li>${esc(s)}</li>`)).join('');
+  $('#notes').innerHTML = notes;
+  $('#notes-card').hidden = !notes;
+}
+$('#src').oninput = () => { clearTimeout(timer); timer = setTimeout(explain, 220); };
+$('#accent').onchange = () => { lastSent = null; explain(); };
+
+$('#saybtn').onclick = async () => {
+  const text = $('#src').value.trim();
+  if (!text) return;
+  $('#saybtn').disabled = true;
+  $('#sayout').innerHTML = '<div class="spin">синтез идёт — на M1 это десятки секунд…</div>';
+  try {
+    const r = await api('/api/say', {text, loud: $('#loud').checked});
+    if (!r.ok) { $('#sayout').innerHTML = `<div class="flash bad">${esc(r.detail)}</div>`; return; }
+    $('#sayout').innerHTML =
+      `<audio controls src="${r.url}"></audio>` +
+      `<ul class="notes">` + r.steps.map(s => `<li>${esc(s)}</li>`).join('') +
+      r.warnings.map(w => `<li class="warn">${esc(w)}</li>`).join('') + `</ul>`;
+  } catch (e) { $('#sayout').innerHTML = `<div class="flash bad">${esc(e.message)}</div>`; }
+  finally { $('#saybtn').disabled = false; }
+};
+
+// ── словари ─────────────────────────────────────────────────────────────
+async function loadDict() {
+  const kind = $('#kind').value;
+  const d = await api(`/api/dict/${kind}?check=${$('#livecheck').checked}`);
+  $('#keyhint').textContent = d.hint;
+  $('#dictcount').textContent = `${d.counts['итого']} записей, из них ${d.counts['из файла']} из файла`;
+  $('#verline').textContent = `версия правил: ${d.version ?? 'зеркала разошлись'}`;
+  $('#dicttable').querySelector('tbody').innerHTML = d.entries.map(e => {
+    const m = e.live === null ? '' : (e.live ? '' : '<span class="dead">✗ </span>');
+    const note = e.note ? `<div class="src dead">${esc(e.note)}</div>` : '';
+    return `<tr><td class="k">${m}${esc(e.key)}</td><td>${esc(e.value)}${note}</td>` +
+           `<td class="src">${esc(e.source)}</td></tr>`;
+  }).join('');
+}
+$('#kind').onchange = loadDict;
+$('#livecheck').onchange = loadDict;
+
+$('#addbtn').onclick = async () => {
+  const kind = $('#kind').value;
+  $('#addbtn').disabled = true;
+  try {
+    const r = await api(`/api/dict/${kind}`, {
+      key: $('#dkey').value, value: $('#dval').value, note: $('#dnote').value,
+      force: $('#force').checked, bump: $('#bump').checked});
+    const notes = (r.warnings || []).map(w => `<li class="warn">${esc(w)}</li>`).join('');
+    $('#addout').innerHTML = `<div class="flash ${r.ok ? 'ok' : 'bad'}">${esc(r.detail)}` +
+      (notes ? `<ul class="notes">${notes}</ul>` : '') +
+      (r.hint ? `<div class="hint">${esc(r.hint)}</div>` : '') + `</div>`;
+    if (r.ok) { $('#dkey').value = $('#dval').value = $('#dnote').value = ''; loadDict(); }
+  } catch (e) { $('#addout').innerHTML = `<div class="flash bad">${esc(e.message)}</div>`; }
+  finally { $('#addbtn').disabled = false; }
+};
+
+// ── окружение ───────────────────────────────────────────────────────────
+const MARK = {ok: '✓', warn: '!', fail: '✗'};
+const renderChecks = (checks) => checks.map(c =>
+  `<div class="check"><div class="m ${c.status}">${MARK[c.status]}</div><div>` +
+  `<div>${esc(c.name)}</div><div class="n">${esc(c.detail)}</div>` +
+  (c.fix && c.status !== 'ok' ? `<div class="fix">→ ${esc(c.fix)}</div>` : '') +
+  `</div></div>`).join('');
+
+async function loadDoctor() {
+  const d = await api('/api/doctor');
+  $('#doctor').innerHTML = renderChecks(d.checks);
+  const bad = d.checks.filter(c => c.status !== 'ok').length;
+  const b = $('#envbadge');
+  b.textContent = bad || '✓';
+  b.className = 'badge' + (d.status === 'fail' ? ' bad' : d.status === 'warn' ? ' warn' : '');
+  const f5 = d.checks.find(c => c.name === 'F5');
+  if (f5 && f5.status === 'fail') {
+    $('#sayrow').innerHTML = `<div class="flash bad">Синтеза здесь не будет — ${esc(f5.detail)}.` +
+      ` Запусти интерфейс brew-питоном.</div>`;
+  }
+  const py = d.checks.find(c => c.name === 'интерпретатор');
+  $('#envline').textContent = py ? py.detail : '';
+}
+$('#recheck').onclick = loadDoctor;
+$('#refbtn').onclick = async () => {
+  const p = $('#refpath').value.trim();
+  const d = await api('/api/ref' + (p ? '?ref=' + encodeURIComponent(p) : ''));
+  $('#refout').innerHTML = renderChecks(d.checks);
+};
+
+loadDoctor();
+$('#refbtn').click();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rusvoice"
+version = "0.1.0"
+description = "Русская озвучка для клонированного голоса: слой правки текста и способ увидеть его работу до синтеза"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Ilya Utov" }]
+keywords = ["tts", "russian", "voice-cloning", "pronunciation", "f5-tts", "ruaccent"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Natural Language :: Russian",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+# Ядро (explain / lint / dict) — на голой стандартной библиотеке. Это не аскеза:
+# команда, которая объясняет, ЧТО тракт сделает с текстом, обязана ставиться там же,
+# где стоит сам тракт, а он живёт в чужих окружениях с чужими версиями торча.
+dependencies = []
+
+[project.optional-dependencies]
+# Ударения. Без них слой не падает — он молча отдаёт текст как есть, и это ровно тот
+# молчаливый провал, ради которого написан `rusvoice doctor`.
+accent = ["ruaccent>=1.5"]
+# Числа прописью (PRONOUNCE_NUMBERS=1).
+numbers = ["num2words>=0.5"]
+# Экран: живой просмотр `explain` по мере набора.
+ui = ["fastapi>=0.110", "uvicorn>=0.27"]
+# Отбор эталона из видео/аудио (`ref grab`, `ref windows`): пословные тайминги + RMS.
+ref = ["faster-whisper>=1.0", "numpy>=1.24"]
+# Собственно синтез (`say`). ⚠️ Самый тяжёлый экстра: `f5-tts` тянет torch и всё вокруг него,
+# а веса качаются при первом запуске (~2.5 ГБ). Поэтому он и вынесен: команды правки текста
+# обязаны ставиться туда, где стоит чужой тракт со своей версией торча.
+# ⚠️ Код F5-TTS под MIT, RUAccent под Apache-2.0, но русский чекпойнт
+# `Misha24-10/F5-TTS_RUSSIAN` — **CC BY-NC 4.0, non-commercial**. Пакет его не везёт,
+# а скачивает по требованию: условия остаются на том, кто скачал.
+voice = ["f5-tts>=1.1", "huggingface-hub>=0.23", "ruaccent>=1.5",
+         "faster-whisper>=1.0", "numpy>=1.24"]
+
+[project.urls]
+Homepage = "https://github.com/ilyautov/rusvoice"
+Issues = "https://github.com/ilyautov/rusvoice/issues"
+
+[project.scripts]
+rusvoice = "rusvoice.cli:main"
+
+[tool.setuptools]
+# Только пакет озвучки: движок (`pipeline/`) — это отдельный продукт, и тянуть его
+# зависимостью в CLI правки текста значило бы отдать пользователю чужой вес.
+packages = ["rusvoice"]
+
+[tool.setuptools.package-data]
+# Словари — данные продукта, а не движка: они переехали сюда вместе со слоем.
+rusvoice = ["*.json", "webui.html"]
