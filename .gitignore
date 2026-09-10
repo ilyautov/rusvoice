@@ -9,3 +9,5 @@ dist/
 .ruff_cache/
 # артефакт gitleaks: в репозитории ему делать нечего
 results.sarif
+# macOS насыпает его в любой открытый каталог
+.DS_Store
